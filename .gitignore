@@ -1,2 +1,10 @@
 # Planning scratch space (decisions live in openspec/ artifacts, not here)
 wayfinder/
+
+# Foundry build artifacts
+cache/
+out/
+broadcast/
+
+# Environment secrets
+.env
