@@ -8,3 +8,6 @@ broadcast/
 
 # Environment secrets
 .env
+
+# Docker secret files (passwords etc.) — local-only, never commit
+secrets/
