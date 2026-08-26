@@ -34,3 +34,15 @@ config :token_ledger,
   chain_id: 31337,
   rpc_url: "http://localhost:8545",
   poll_interval_ms: 2_000
+
+# Reconciliation anti-entropy on the §2.5 cadence. Oban.Cron is minute-
+# granular in the pinned version, so the spec's "every 30 seconds" is realized
+# as every minute (the exactly-once catch-up property holds at any cadence).
+# One runner, no overlap.
+config :token_ledger, Oban,
+  queues: [reconciliation: 1],
+  cron: [
+    crontab: [
+      {"* * * * *", TokenLedger.ReconciliationJob}
+    ]
+  ]

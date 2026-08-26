@@ -21,6 +21,15 @@ config :token_ledger,
   # tree (integration tests start it explicitly after their fixtures are up).
   start_chain_supervisor: true
 
+# Oban base configuration. Environment files refine queues/cron: dev runs the
+# reconciliation queue on a 30-second cron (§2.5); test disables both so jobs
+# execute only when a test performs them inline.
+config :token_ledger, Oban,
+  engine: Oban.Engines.Basic,
+  repo: TokenLedger.Repo,
+  queues: false,
+  plugins: false
+
 config :logger, level: :info
 
 import_config "#{config_env()}.exs"

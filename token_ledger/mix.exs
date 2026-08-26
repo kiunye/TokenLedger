@@ -37,7 +37,9 @@ defmodule TokenLedger.MixProject do
       {:ex_abi, "~> 0.8"},
       {:ex_keccak, ">= 0.7.8"},
       # JSON (JSON-RPC payloads, jsonb encoding)
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      # Background jobs (reconciliation scheduling; Postgres-backed per §4.1)
+      {:oban, "~> 2.19"}
     ] ++ dev_test_deps()
   end
 
