@@ -3,8 +3,8 @@ defmodule TokenLedger.ListenerResumeTest do
   # initial cursor from the last *confirmed* block, not the last persisted one.
   use ExUnit.Case, async: false
 
-  alias TokenLedger.ChainEvents
   alias TokenLedger.ChainEventListener
+  alias TokenLedger.ChainEvents
   alias TokenLedger.Repo
   import Ecto.Query
 

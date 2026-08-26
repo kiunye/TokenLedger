@@ -4,8 +4,8 @@ defmodule TokenLedger.ProjectionTest do
 
   alias TokenLedger.Accounts.Account
   alias TokenLedger.ChainEvents
-  alias TokenLedger.Projections.Balance
   alias TokenLedger.Projection
+  alias TokenLedger.Projections.Balance
   alias TokenLedger.Repo
   import Ecto.Query
 

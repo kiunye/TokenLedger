@@ -6,8 +6,8 @@ defmodule TokenLedger.ReconciliationJobTest do
 
   alias TokenLedger.ChainEvents
   alias TokenLedger.Reconciliation
-  alias TokenLedger.ReconciliationJob
   alias TokenLedger.Reconciliation.Run
+  alias TokenLedger.ReconciliationJob
   alias TokenLedger.Repo
   import Ecto.Query
 
