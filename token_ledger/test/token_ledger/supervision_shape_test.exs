@@ -17,7 +17,8 @@ defmodule TokenLedger.SupervisionShapeTest do
       assert Enum.map(children, & &1.id) == [
                TokenLedger.RPC.ConnectionPool,
                TokenLedger.ChainEventListener,
-               TokenLedger.ReorgWatcher
+               TokenLedger.ReorgWatcher,
+               TokenLedger.ProjectionWorker
              ]
 
       # No explicit :restart key means the OTP default :permanent.

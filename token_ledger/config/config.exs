@@ -28,7 +28,8 @@ config :token_ledger, Oban,
   engine: Oban.Engines.Basic,
   repo: TokenLedger.Repo,
   queues: false,
-  plugins: false
+  plugins: false,
+  cron: false
 
 config :logger, level: :info
 

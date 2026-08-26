@@ -34,6 +34,11 @@ defmodule TokenLedger.Sepolia.Supervisor do
         id: TokenLedger.ReorgWatcher,
         start: {TokenLedger.ReorgWatcher, :start_link, []},
         restart: :permanent
+      },
+      %{
+        id: TokenLedger.ProjectionWorker,
+        start: {TokenLedger.ProjectionWorker, :start_link, []},
+        restart: :permanent
       }
     ]
 

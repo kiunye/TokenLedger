@@ -37,19 +37,26 @@ defmodule TokenLedger.ChainEventListener do
     chain_id = ChainConfig.chain_id()
     contract = ChainConfig.contract_address!()
 
-    cursor =
-      case ChainEvents.max_persisted_block(chain_id) do
-        nil ->
-          Logger.info("Event log empty; starting fresh at block #{ChainConfig.start_block()}")
-          ChainConfig.start_block()
-
-        max_block ->
-          Logger.info("Resuming ingestion after last persisted block #{max_block}")
-          max_block + 1
-      end
+    cursor = resume_cursor(chain_id)
 
     schedule_poll(0)
     {:ok, %{chain_id: chain_id, contract_address: contract, next_block: cursor}}
+  end
+
+  # Resume from the last watcher-confirmed block (architecture §4.3). Refetching
+  # the shallow confirmed tail costs one bounded RPC call per restart and
+  # guarantees the listener picks up exactly where finality left off; persisted
+  # but unconfirmed rows are left in place for the watcher to confirm.
+  def resume_cursor(chain_id) do
+    case ChainEvents.last_confirmed_block(chain_id) do
+      nil ->
+        Logger.info("No confirmed events yet; starting fresh at block #{ChainConfig.start_block()}")
+        ChainConfig.start_block()
+
+      confirmed ->
+        Logger.info("Resuming ingestion after last confirmed block #{confirmed}")
+        confirmed + 1
+    end
   end
 
   @impl true

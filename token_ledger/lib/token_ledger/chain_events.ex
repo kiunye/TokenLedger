@@ -154,4 +154,42 @@ defmodule TokenLedger.ChainEvents do
     |> Repo.one()
     |> Kernel.||(0)
   end
+
+  @doc """
+  Confirmed, non-orphaned events for `chain_id` strictly past the
+  `(block_number, log_index)` cursor, ordered by log identity and capped at
+  `limit`. This is the projection's only read path: unconfirmed tails are
+  invisible and orphaned evidence can never re-enter (design decision 4).
+
+  A cursor of `{block_number: -1, log_index: -1}` returns the first page.
+  """
+  @spec confirmed_since(integer(), %{block_number: integer(), log_index: integer()}, pos_integer()) ::
+          [Event.t()]
+  def confirmed_since(chain_id, cursor, limit)
+      when is_integer(chain_id) and limit > 0 do
+    %{block_number: cb, log_index: cl} = cursor
+
+    Event
+    |> where(
+      [e],
+      e.chain_id == ^chain_id and e.confirmed and not e.orphaned and
+        fragment("(?, ?) > (?, ?)", e.block_number, e.log_index, ^cb, ^cl)
+    )
+    |> order_by([e], asc: e.block_number, asc: e.log_index)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
+  Highest confirmed, non-orphaned block for `chain_id`, or `nil` when nothing
+  is confirmed yet. Used by the listener resume calculation (design decision 5)
+  and reconciliation height reads.
+  """
+  @spec last_confirmed_block(integer()) :: non_neg_integer() | nil
+  def last_confirmed_block(chain_id) do
+    Event
+    |> where(chain_id: ^chain_id, confirmed: true, orphaned: false)
+    |> select([e], max(e.block_number))
+    |> Repo.one()
+  end
 end
