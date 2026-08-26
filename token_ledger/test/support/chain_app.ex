@@ -60,7 +60,8 @@ defmodule TokenLedger.Test.ChainApp do
       fn ->
         Process.whereis(ChainSupervisor) == nil and
           Process.whereis(TokenLedger.RPC.ConnectionPool) == nil and
-          Process.whereis(TokenLedger.ChainEventListener) == nil
+          Process.whereis(TokenLedger.ChainEventListener) == nil and
+          Process.whereis(TokenLedger.ReorgWatcher) == nil
       end,
       "chain supervision tree fully stopped"
     )

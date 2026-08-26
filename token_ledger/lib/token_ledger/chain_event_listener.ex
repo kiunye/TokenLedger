@@ -58,6 +58,18 @@ defmodule TokenLedger.ChainEventListener do
   end
 
   @impl true
+  def handle_cast({:rewind, block_number}, state) do
+    # ReorgWatcher has orphaned the superseded range; rewind the cursor so
+    # the normal poll loop refetches the canonical chain (decision 3).
+    if block_number < state.next_block do
+      Logger.warning("Reorg rewind: cursor #{state.next_block} -> #{block_number}")
+      {:noreply, %{state | next_block: block_number}}
+    else
+      {:noreply, state}
+    end
+  end
+
+  @impl true
   def handle_info(:poll, state) do
     state = run_cycle(state)
     schedule_poll()

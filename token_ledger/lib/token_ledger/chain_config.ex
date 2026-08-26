@@ -13,6 +13,7 @@ defmodule TokenLedger.ChainConfig do
   @retry_attempts_default 5
   @backoff_base_ms_default 250
   @backoff_max_ms_default 8_000
+  @confirmation_depth_default 12
 
   @doc "Chain this app indexes. Schema-ready for future multi-chain."
   def chain_id do
@@ -52,6 +53,11 @@ defmodule TokenLedger.ChainConfig do
   @doc "Maximum block span per eth_getLogs call (provider range caps)."
   def max_chunk_blocks do
     get(:max_chunk_blocks, @max_chunk_blocks_default)
+  end
+
+  @doc "Blocks of depth before a live event counts as final (architecture §2.5)."
+  def confirmation_depth do
+    get(:confirmation_depth, @confirmation_depth_default)
   end
 
   @doc "Bounded retry policy applied by RPC.ConnectionPool."
