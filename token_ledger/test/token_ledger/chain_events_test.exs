@@ -85,6 +85,110 @@ defmodule TokenLedger.ChainEventsTest do
 
       assert ChainEvents.max_persisted_block(@chain_id) == 10
     end
+
+    test "excludes orphaned rows so the resume cursor cannot sit on a phantom tip" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(10),
+          event(11),
+          event(12)
+        ])
+
+      {:ok, 2} = ChainEvents.mark_range_orphaned(@chain_id, 11, 12)
+
+      assert ChainEvents.max_persisted_block(@chain_id) == 10
+    end
+  end
+
+  describe "partial unique index (spec: chain_events idempotent replay post-orphan)" do
+    test "canonical replacement inserts beside the orphaned row at the same identity" do
+      {:ok, 1} = ChainEvents.persist_events([event(7, block_hash: "0xold")])
+      {:ok, 1} = ChainEvents.mark_range_orphaned(@chain_id, 7, 7)
+
+      assert {:ok, 1} = ChainEvents.persist_events([event(7, block_hash: "0xnew")])
+
+      rows = ChainEvents.list_events(@chain_id)
+      assert Enum.count(rows) == 2
+      by_hash = Map.new(rows, &{&1.block_hash, &1})
+      assert by_hash["0xold"].orphaned == true
+      assert by_hash["0xnew"].orphaned == false
+    end
+
+    test "live duplicates still conflict-nothing" do
+      {:ok, 1} = ChainEvents.persist_events([event(7)])
+
+      assert {:ok, 0} = ChainEvents.persist_events([event(7, block_hash: "0xdifferent-hash-same-slot")])
+      assert Enum.count(ChainEvents.list_events(@chain_id)) == 1
+    end
+  end
+
+  describe "mark_range_orphaned/3" do
+    test "marks only live rows in range and reports the count" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(1),
+          event(2),
+          event(3),
+          event(4)
+        ])
+
+      assert {:ok, 2} = ChainEvents.mark_range_orphaned(@chain_id, 2, 3)
+
+      rows = ChainEvents.list_events(@chain_id)
+      orphaned = rows |> Enum.filter(& &1.orphaned) |> Enum.map(& &1.block_number) |> Enum.sort()
+      assert orphaned == [2, 3]
+    end
+
+    test "is idempotent over an already-orphaned range" do
+      {:ok, _} = ChainEvents.persist_events([event(2)])
+
+      assert {:ok, 1} = ChainEvents.mark_range_orphaned(@chain_id, 1, 5)
+      assert {:ok, 0} = ChainEvents.mark_range_orphaned(@chain_id, 1, 5)
+    end
+  end
+
+  describe "confirm_through/2 (confirmation sweep)" do
+    test "confirms live unconfirmed rows at or under the boundary only" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(10),
+          event(11),
+          event(12)
+        ])
+
+      assert {:ok, 2} = ChainEvents.confirm_through(@chain_id, 11)
+
+      rows = ChainEvents.list_events(@chain_id)
+      confirmed = rows |> Enum.filter(& &1.confirmed) |> Enum.map(& &1.block_number) |> Enum.sort()
+      assert confirmed == [10, 11]
+    end
+
+    test "never confirms orphaned rows" do
+      {:ok, _} = ChainEvents.persist_events([event(10), event(11)])
+      {:ok, 1} = ChainEvents.mark_range_orphaned(@chain_id, 11, 11)
+
+      assert {:ok, 1} = ChainEvents.confirm_through(@chain_id, 100)
+
+      rows = ChainEvents.list_events(@chain_id)
+      assert Enum.find(rows, &(&1.block_number == 10)).confirmed == true
+      assert Enum.find(rows, &(&1.block_number == 11)).confirmed == false
+    end
+  end
+
+  describe "live_block_hashes/3" do
+    test "returns one hash per live block in range, excluding orphans" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(5, block_hash: "0xa", log_index: 0),
+          event(5, block_hash: "0xa", log_index: 1),
+          event(6, block_hash: "0xb", log_index: 0),
+          event(7, block_hash: "0xcorphan", log_index: 0)
+        ])
+
+      {:ok, 1} = ChainEvents.mark_range_orphaned(@chain_id, 7, 7)
+
+      assert ChainEvents.live_block_hashes(@chain_id, 5, 10) == %{5 => "0xa", 6 => "0xb"}
+    end
   end
 
   defp three_events do
