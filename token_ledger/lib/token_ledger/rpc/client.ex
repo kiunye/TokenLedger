@@ -54,6 +54,42 @@ defmodule TokenLedger.RPC.Client do
   end
 
   @doc """
+  Block header by number (`eth_getBlockByNumber`), reduced to the three
+  fields the reorg watcher needs: `number`, `hash`, `parent_hash`.
+  `{:ok, nil}` when the height does not exist on the node.
+  """
+  @spec get_block(block_number()) :: {:ok, map() | nil} | {:error, term()}
+  def get_block(number) when is_integer(number) and number >= 0 do
+    ConnectionPool.execute(
+      fn ->
+        Ethereumex.HttpClient.eth_get_block_by_number(integer_to_quantity(number), false,
+          url: url()
+        )
+      end,
+      :eth_get_block_by_number
+    )
+    |> case do
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, block} ->
+        {:ok,
+         %{
+           number: quantity_to_integer!(block["number"]),
+           hash: normalize_hash(block["hash"]),
+           parent_hash: normalize_hash(block["parentHash"])
+         }}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc "Lowercases a 0x-prefixed hash so string comparison against stored hashes is case-stable."
+  @spec normalize_hash(String.t()) :: String.t()
+  def normalize_hash("0x" <> hex), do: "0x" <> String.downcase(hex)
+
+  @doc """
   Read-only contract call. `data` is the ABI-encoded calldata including the
   method selector; `block` is a tag (`"latest"`) or hex quantity.
   """
