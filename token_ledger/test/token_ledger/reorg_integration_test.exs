@@ -136,6 +136,8 @@ defmodule TokenLedger.ReorgIntegrationTest do
       end
     end, "watcher remembered pre-reorg tip", 20)
 
+    live_before = Enum.count(live_rows())
+
     reorg!(rpc_url, 2)
 
     wait_until!(@catchup_timeout, fn ->
