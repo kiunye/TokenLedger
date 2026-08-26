@@ -127,6 +127,38 @@ defmodule TokenLedger.Test.Harness do
     Client.quantity_to_integer!(quantity)
   end
 
+  @doc """
+  Forces a real chain reorganization: the last `depth` canonical blocks are
+  replaced by freshly mined competitors at the same heights, with new block
+  hashes. `tx_block_pairs` optionally supplies `[tx, block_height]` pairs
+  mined into the replacement blocks; empty re-mines quiet replacements.
+  Raw anvil_* RPC, bypassing the app's seam on purpose — it is test-chain
+  choreography, not indexer behavior.
+  """
+  def reorg!(rpc_url, depth, tx_block_pairs \\ []) when depth >= 1 do
+    case Ethereumex.HttpClient.request(
+           "anvil_reorg",
+           [depth, tx_block_pairs],
+           url: rpc_url
+         ) do
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        raise "anvil_reorg(#{depth}) failed: #{inspect(reason)}"
+    end
+  end
+
+  @doc "Canonical block hash at `number`, lowercased."
+  def block_hash!(rpc_url, number) do
+    case Ethereumex.HttpClient.eth_get_block_by_number(Client.integer_to_quantity(number), false,
+           url: rpc_url
+         ) do
+      {:ok, %{"hash" => hash}} -> String.downcase(hash)
+      other -> raise "block #{number} unavailable: #{inspect(other)}"
+    end
+  end
+
   @doc "eth_getLogs straight against the node, bypassing the app's RPC pool."
   def logs(rpc_url, filter) do
     Ethereumex.HttpClient.eth_get_logs(filter, url: rpc_url)
