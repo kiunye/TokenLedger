@@ -3,10 +3,12 @@ defmodule TokenLedger.Sepolia.Supervisor do
   Per-chain subtree for the one chain this build targets (architecture §4.3).
 
   `:rest_for_one` with restart intensity 5 per 60s: `RPC.ConnectionPool`
-  starts first, so if it dies the event listener is torn down and restarted
-  with it instead of limping on a dead connection; a genuinely dead endpoint
-  escalates past this supervisor rather than retrying forever. Later phases
-  append `ReorgWatcher`/`ProjectionWorker` as children without reshaping.
+  starts first, so if it dies the event listener and reorg watcher are torn
+  down and restarted with it instead of limping on a dead connection; the
+  watcher also restarts when only the listener dies, since its remembered
+  tip hashes are stale after any rewind. A genuinely dead endpoint escalates
+  past this supervisor rather than retrying forever. Later phases append
+  `ProjectionWorker` as a child without reshaping.
   """
 
   use Supervisor
@@ -26,6 +28,11 @@ defmodule TokenLedger.Sepolia.Supervisor do
       %{
         id: TokenLedger.ChainEventListener,
         start: {TokenLedger.ChainEventListener, :start_link, []},
+        restart: :permanent
+      },
+      %{
+        id: TokenLedger.ReorgWatcher,
+        start: {TokenLedger.ReorgWatcher, :start_link, []},
         restart: :permanent
       }
     ]

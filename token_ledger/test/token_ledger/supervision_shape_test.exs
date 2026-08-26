@@ -6,7 +6,7 @@ defmodule TokenLedger.SupervisionShapeTest do
   # any RPC machinery. Runtime recovery is proven by the integration suite.
 
   describe "TokenLedger.Sepolia.Supervisor" do
-    test "rest_for_one with intensity 5 per 60s, pool before listener" do
+    test "rest_for_one with intensity 5 per 60s, pool before listener before watcher" do
       assert {:ok, {flags, children}} = TokenLedger.Sepolia.Supervisor.init([])
 
       # Supervisor.init normalizes to Erlang flag names.
@@ -16,7 +16,8 @@ defmodule TokenLedger.SupervisionShapeTest do
 
       assert Enum.map(children, & &1.id) == [
                TokenLedger.RPC.ConnectionPool,
-               TokenLedger.ChainEventListener
+               TokenLedger.ChainEventListener,
+               TokenLedger.ReorgWatcher
              ]
 
       # No explicit :restart key means the OTP default :permanent.
