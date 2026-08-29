@@ -25,6 +25,15 @@ defmodule TokenLedger.Reconciliation do
     |> Repo.insert!()
   end
 
+  @spec last_run(integer()) :: Run.t() | nil
+  def last_run(chain_id) do
+    Run
+    |> where(chain_id: ^chain_id)
+    |> order_by(desc: :started_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   @spec finish_run(Run.t(), non_neg_integer(), boolean()) :: Run.t()
   def finish_run(run, gap_blocks_backfilled, reorg_detected) do
     run
