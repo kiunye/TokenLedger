@@ -1,0 +1,35 @@
+---
+# tasks/erlang-elixir.yml
+- name: Download Erlang Solutions repository key
+  get_url:
+    url: https://packages.erlang-solutions.com/erlang/esl-erlang/FPLA_banner.txt
+    dest: /tmp/FPLA_banner.txt
+    mode: ''0644''
+
+- name: Add Erlang Solutions repository key
+  apt_key:
+    file: /tmp/FPLA_banner.txt
+    state: present
+
+- name: Add Erlang Solutions repository
+  apt_repository:
+    repo: deb https://packages.erlang-solutions.com/{{ ansible_distribution }} {{ ansible_distribution_release }} contrib
+    state: present
+    filename: erlang-solutions
+
+- name: Update apt cache (for Erlang Solutions repo)
+  apt:
+    update_cache: yes
+
+- name: Install Erlang and Elixir
+  apt:
+    name:
+      - esl-erlang
+      - elixir
+    state: present
+
+- name: Install Hex and Rebar (local to user)
+  become: false
+  command: mix local.hex --force && mix local.rebar --force
+  args:
+    creates: ~/.mix/archives/hex.ez

@@ -1,0 +1,24 @@
+---
+# tasks/app-user.yml
+- name: Create token_ledger group
+  group:
+    name: "{{ token_ledger_group }}"
+    state: present
+    system: yes
+
+- name: Create token_ledger user
+  user:
+    name: "{{ token_ledger_user }}"
+    group: "{{ token_ledger_group }}"
+    create_home: yes
+    home: "{{ token_ledger_path }}"
+    shell: /bin/bash
+    system: yes
+
+- name: Ensure application directory exists
+  file:
+    path: "{{ token_ledger_path }}"
+    state: directory
+    owner: "{{ token_ledger_user }}"
+    group: "{{ token_ledger_group }}"
+    mode: ''0755''

@@ -1,0 +1,24 @@
+# Default variables for TokenLedger deployment
+
+# Application settings
+token_ledger_repo: https://github.com/kiunye/TokenLedger.git
+token_ledger_version: develop
+token_ledger_path: /opt/token_ledger
+token_ledger_user: token_ledger
+token_ledger_group: token_ledger
+token_ledger_port: 4000
+token_ledger_host: 0.0.0.0
+
+# Database settings
+postgres_user: token_ledger
+postgres_password: changeme123  # Should be overridden via vault or extra vars
+postgres_database: token_ledger_prod
+postgres_host: localhost
+postgres_port: 5432
+
+# Sepolia network settings
+sepolia_rpc_url: ""  # e.g., https://sepolia.infura.io/v3/YOUR_KEY
+contract_address: ""  # If empty, the contract will be deployed
+
+# Whether to deploy the contract (if contract_address is empty)
+deploy_contract: true

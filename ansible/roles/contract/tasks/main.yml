@@ -1,0 +1,93 @@
+---
+# tasks/contract.yml
+- name: Check if Foundry is installed
+  command: forge --version
+  ignore_yes: true
+  register: forge_version
+  changed_when: false
+
+- name: Install Foundry
+  when: forge_version is failed
+  block:
+    - name: Install Foundry via script
+      command: curl -L https://foundry.paradigm.xyz | bash
+      args:
+        creates: /root/.foundry/bin/forge
+
+    - name: Add Foundry to PATH for root user
+      lineinfile:
+        dest: /root/.bashrc
+        line: 'export PATH="/root/.foundry/bin:$PATH"'
+        state: present
+
+    - name: Add Foundry to PATH for token_ledger user
+      lineinfile:
+        dest: "{{ token_ledger_path }}/.bashrc"
+        line: 'export PATH="/root/.foundry/bin:$PATH"'
+        state: present
+      become: yes
+      become_user: "{{ token_ledger_user }}"
+
+- name: Determine contract address
+  set_fact:
+    determined_contract_address: "{{ contract_address }}"
+  when: contract_address != ''
+
+- name: Deploy contract if address not provided and deploy_contract is true
+  when: 
+    - contract_address == '' 
+    - deploy_contract == true
+  block:
+    - name: Create temporary file for deployer private key
+      delegate_to: localhost
+      local_action: 
+        module: tempfile
+        state: file
+        suffix: _key
+      register: private_key_file
+      run_once: true
+
+    - name: Write deployer private key to temporary file (delegate_to localhost)
+      delegate_to: localhost
+      copy:
+        dest: "{{ private_key_file.path }}"
+        content: "{{ deployer_private_key }}"
+        mode: ''0600''
+      run_once: true
+      no_log: true
+
+    - name: Deploy TokenRegistry contract to Sepolia
+      become: yes
+      become_user: "{{ token_ledger_user }}"
+      environment:
+        PATH: "/root/.foundry/bin:{{ ansible_env.PATH }}"
+      command: >
+        forge script script/Deploy.s.sol
+        --rpc-url {{ sepolia_rpc_url }}
+        --broadcast
+        --private-key file://{{ private_key_file.path }}
+      args:
+        chdir: "{{ token_ledger_path }}"
+      register: deploy_output
+      no_log: true
+
+    - name: Extract contract address from deployment output
+      set_fact:
+        determined_contract_address: "{{ deploy_output.stdout_lines[-1] | trim }}"
+      when: deploy_output.stdout_lines[-1] is match('^0x[a-fA-F0-9]{40}$')
+
+    - name: Remove temporary private key file
+      delegate_to: localhost
+      file:
+        dest: "{{ private_key_file.path }}"
+        state: absent
+      run_once: true
+
+- name: Fail if contract address could not be determined
+  fail:
+    msg: "Contract address could not be determined. Please provide a contract_address or ensure deployment succeeds."
+  when: determined_contract_address is not defined or determined_contract_address == ''
+
+- name: Set contract_address fact for later use
+  set_fact:
+    contract_address: "{{ determined_contract_address }}"

@@ -1,0 +1,19 @@
+[Unit]
+Description=TokenLedger application
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User={{ token_ledger_user }}
+Group={{ token_ledger_group }}
+WorkingDirectory={{ token_ledger_path }}
+Environment=MIX_ENV=prod
+Environment=DATABASE_URL=ecto://postgres:{{ postgres_password }}@{{ postgres_host }}:{{ postgres_port }}/{{ postgres_database }}
+Environment=SEPOLIA_RPC_URL={{ sepolia_rpc_url }}
+Environment=CONTRACT_ADDRESS={{ contract_address }}
+ExecStart=/usr/local/bin/mix phx.server
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

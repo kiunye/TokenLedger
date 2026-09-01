@@ -1,0 +1,38 @@
+---
+- name: Deploy TokenLedger application
+  hosts: all
+  become: yes
+  vars_files:
+    - ./group_vars/all.yml
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      become: yes
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - curl
+          - gnupg2
+          - software-properties-common
+          - lsb-release
+        state: present
+        update_cache: yes
+
+  roles:
+    - role: postgresql
+    - role: erlang-elixir
+    - role: app-user
+    - role: database
+    - role: source
+    - role: contract
+    - role: service
+
+  post_tasks:
+    - name: Ensure service is started and enabled
+      systemd:
+        name: token_ledger
+        state: started
+        enabled: yes

@@ -1,0 +1,54 @@
+---
+# tasks/source.yml
+- name: Check if TokenLedger source already exists
+  stat:
+    path: "{{ token_ledger_path }}/.git"
+  register: token_ledger_git
+
+- name: Clone TokenLedger repository
+  git:
+    repo: "{{ token_ledger_repo }}"
+    dest: "{{ token_ledger_path }}"
+    version: "{{ token_ledger_version }}"
+    force: yes
+  when: not token_ledger_git.stat.exists
+
+- name: Update TokenLedger repository to desired version
+  git:
+    repo: "{{ token_ledger_repo }}"
+    dest: "{{ token_ledger_path }}"
+    version: "{{ token_ledger_version }}"
+    update: yes
+  when: token_ledger_git.stat.exists
+
+- name: Create secrets directory
+  file:
+    path: "{{ token_ledger_path }}/secrets"
+    state: directory
+    owner: "{{ token_ledger_user }}"
+    group: "{{ token_ledger_group }}"
+    mode: ''0755''
+
+- name: Create PostgreSQL secrets file for TokenLedger
+  copy:
+    dest: "{{ token_ledger_path }}/secrets/postgres_password.txt"
+    content: "{{ postgres_password }}"
+    owner: "{{ token_ledger_user }}"
+    group: "{{ token_ledger_group }}"
+    mode: ''0600''
+
+- name: Install Mix dependencies
+  become: yes
+  become_user: "{{ token_ledger_user }}"
+  command: mix deps.get
+  args:
+    chdir: "{{ token_ledger_path }}"
+
+- name: Setup database (create and migrate)
+  become: yes
+  become_user: "{{ token_ledger_user }}"
+  command: mix ecto.setup
+  args:
+    chdir: "{{ token_ledger_path }}"
+    environment:
+      MIX_ENV: prod
