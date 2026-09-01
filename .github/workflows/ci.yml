@@ -29,14 +29,14 @@ jobs:
       - name: Set up Elixir and Erlang
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.17.x'
-          otp-version: '26.x'
+          elixir-version: "1.17.x"
+          otp-version: "26.x"
 
       - name: Cache Hex packages
         uses: actions/cache@v3
         with:
-          path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
+          path: token_ledger/deps
+          key: ${{ runner.os }}-mix-${{ hashFiles("token_ledger/mix.lock") }}
           restore-keys: |
             ${{ runner.os }}-mix-
 
@@ -63,16 +63,16 @@ jobs:
           done
 
       - name: Install dependencies
-        run: mix deps.get
+        run: cd token_ledger && mix deps.get
 
       - name: Setup database
-        run: mix ecto.setup
+        run: cd token_ledger && mix ecto.setup
 
       - name: Run ExUnit tests
-        run: mix test
+        run: cd token_ledger && mix test
 
       - name: Run Foundry tests
-        run: forge test
+        run: cd token_ledger && forge test
 
       - name: Stop Anvil
         if: always()
