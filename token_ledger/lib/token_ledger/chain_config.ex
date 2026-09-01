@@ -69,6 +69,13 @@ defmodule TokenLedger.ChainConfig do
     }
   end
 
+  @owner_address_default "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+  @doc "Address of the token registry owner, used for signing tx submissions."
+  def owner_address do
+    get(:owner_address, @owner_address_default)
+  end
+
   defp get(key, default) do
     Application.get_env(:token_ledger, key, default)
   end

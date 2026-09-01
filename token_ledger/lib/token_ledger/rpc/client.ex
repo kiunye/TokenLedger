@@ -103,6 +103,36 @@ defmodule TokenLedger.RPC.Client do
     )
   end
 
+  @doc """
+  Signs and broadcasts a transaction via the node's unlocked account
+  (`eth_sendTransaction`). `transaction` is a string-keyed map with `from`,
+  `to`, and `data` (and optionally `gas`/`value`); the node holds the key.
+  Returns the transaction hash on success.
+  """
+  @spec eth_send_transaction(map()) :: {:ok, String.t()} | {:error, term()}
+  def eth_send_transaction(transaction) when is_map(transaction) do
+    ConnectionPool.execute(
+      fn -> Ethereumex.HttpClient.eth_send_transaction(transaction, url: url()) end,
+      :eth_send_transaction
+    )
+    |> case do
+      {:ok, tx_hash} when is_binary(tx_hash) -> {:ok, String.downcase(tx_hash)}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Transaction receipt by hash (`eth_getTransactionReceipt`). Returns `{:ok, nil}`
+  when the transaction is not yet mined; otherwise the receipt map.
+  """
+  @spec get_transaction_receipt(String.t()) :: {:ok, map() | nil} | {:error, term()}
+  def get_transaction_receipt(tx_hash) when is_binary(tx_hash) do
+    ConnectionPool.execute(
+      fn -> Ethereumex.HttpClient.eth_get_transaction_receipt(tx_hash, url: url()) end,
+      :eth_get_transaction_receipt
+    )
+  end
+
   @doc "Converts an RPC hex quantity (`\"0x1a\"`) to an integer."
   @spec quantity_to_integer!(term()) :: non_neg_integer()
   def quantity_to_integer!("0x" <> hex) when is_binary(hex) do

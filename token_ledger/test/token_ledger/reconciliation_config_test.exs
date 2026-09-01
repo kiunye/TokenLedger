@@ -9,9 +9,11 @@ defmodule TokenLedger.ReconciliationConfigTest do
     config = Config.Reader.read!("config/dev.exs", env: :dev, imports: [])
     oban = config[:token_ledger][Oban]
 
-    assert oban[:queues] == [reconciliation: 1]
-    assert [{cron_expr, TokenLedger.ReconciliationJob}] = oban[:cron][:crontab]
-    assert cron_expr == "* * * * *"
+    assert oban[:queues] == [reconciliation: 1, compliance: 1]
+    assert oban[:cron][:crontab] == [
+             {"* * * * *", TokenLedger.ReconciliationJob},
+             {"* * * * *", TokenLedger.Compliance.Job}
+           ]
   end
 
   @tag :config

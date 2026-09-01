@@ -29,7 +29,8 @@ config :token_ledger, TokenLedger.Repo,
 config :token_ledger,
   chain_id: 31337,
   rpc_url: "http://localhost:8545",
-  poll_interval_ms: 200
+  poll_interval_ms: 200,
+  owner_address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
 # Integration tests own the chain supervision lifecycle: they start it only
 # after Anvil is up and the contract address is known. Unit tests never need
