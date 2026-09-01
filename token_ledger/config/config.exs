@@ -33,4 +33,15 @@ config :token_ledger, Oban,
 
 config :logger, level: :info
 
+# Phoenix endpoint base configuration (shared across envs).
+config :token_ledger, TokenLedgerWeb.Endpoint,
+  url: [host: "localhost"],
+  adapter: Bandit.PhoenixAdapter,
+  render_errors: [
+    formats: [html: TokenLedgerWeb.ErrorHTML, json: TokenLedgerWeb.ErrorJSON],
+    layout: false
+  ],
+  pubsub_server: TokenLedger.PubSub,
+  live_view: [signing_salt: "token_ledger_live_view"]
+
 import_config "#{config_env()}.exs"

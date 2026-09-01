@@ -49,3 +49,13 @@ config :token_ledger, Oban,
       {"* * * * *", TokenLedger.Compliance.Job}
     ]
   ]
+
+# Phoenix endpoint for dev: serves on 127.0.0.1:4000 with code reloading off.
+# Bandit is the HTTP adapter.
+config :token_ledger, TokenLedgerWeb.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4000],
+  check_origin: false,
+  code_reloader: false,
+  debug_errors: true,
+  secret_key_base: "pSTLJEGnY81B2s+o9gR5kjTdVxuFz+y7AganSBk4P2NUv4G58OP1NAenRSSQFwPwTLSxV8cR1k2Q3t4u5v6w7x8y9z0a1b2c3d4e5f==",
+  server: true

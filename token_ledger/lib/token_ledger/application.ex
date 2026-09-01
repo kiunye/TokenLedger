@@ -2,8 +2,15 @@ defmodule TokenLedger.Application do
   @moduledoc """
   OTP application entry point.
 
-  Starts Ecto and Oban, then — unless `start_chain_supervisor: false` (test
-  lifecycle control) — the chain supervision tree from architecture §4.3.
+  Supervision order is intentional (architecture §4.3, PR1):
+
+  `Repo -> Oban -> PubSub -> Telemetry -> Endpoint -> ChainSupervisor`.
+
+  `Repo` and `Oban` must be up before anything touches the database;
+  `PubSub` must be alive before `Endpoint` subscribes; `Endpoint`
+  must be ready before `ChainSupervisor` starts emitting PubSub
+  broadcasts. `start_chain_supervisor: false` (test lifecycle control)
+  suppresses only the final child, not the web stack.
   """
 
   use Application
@@ -13,7 +20,10 @@ defmodule TokenLedger.Application do
     children =
       [
         TokenLedger.Repo,
-        {Oban, Application.fetch_env!(:token_ledger, Oban)}
+        {Oban, Application.fetch_env!(:token_ledger, Oban)},
+        {Phoenix.PubSub, name: TokenLedger.PubSub},
+        TokenLedgerWeb.Telemetry,
+        TokenLedgerWeb.Endpoint
       ]
       |> Enum.concat(chain_children())
 

@@ -5,7 +5,7 @@ defmodule TokenLedger.MixProject do
     [
       app: :token_ledger,
       version: "0.1.0",
-      elixir: "~> 1.20",
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -39,7 +39,17 @@ defmodule TokenLedger.MixProject do
       # JSON (JSON-RPC payloads, jsonb encoding)
       {:jason, "~> 1.4"},
       # Background jobs (reconciliation scheduling; Postgres-backed per §4.1)
-      {:oban, "~> 2.19"}
+      {:oban, "~> 2.19"},
+      # Web / LiveView
+      {:phoenix, "~> 1.7.14"},
+      {:phoenix_live_view, "~> 1.0.5"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_ecto, "~> 4.6"},
+      {:phoenix_pubsub, "~> 2.1"},
+      {:bandit, "~> 1.5"},
+      {:hammer, "~> 6.1"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.1"}
     ] ++ dev_test_deps()
   end
 
