@@ -108,13 +108,13 @@ defmodule TokenLedgerWeb.DashboardLive do
   defp format_payload(event) do
     case event.event_type do
       "transfer" ->
-        from = Map.get(event.payload, "from", "unknown") |> String.slice(0, 10) <> "..."
-        to = Map.get(event.payload, "to", "unknown") |> String.slice(0, 10) <> "..."
+        from = Map.get(event.payload, "from", "unknown") |> String.slice(0, 10) |> Kernel.<>("...")
+        to = Map.get(event.payload, "to", "unknown") |> String.slice(0, 10) |> Kernel.<>("...")
         amount = Map.get(event.payload, "amount", "0")
         "#{from} → #{to}: #{amount}"
 
       "compliance_updated" ->
-        account = Map.get(event.payload, "account", "unknown") |> String.slice(0, 10) <> "..."
+        account = Map.get(event.payload, "account", "unknown") |> String.slice(0, 10) |> Kernel.<>("...")
         status = if Map.get(event.payload, "whitelisted"), do: "whitelisted", else: "revoked"
         "#{account}: #{status}"
 
