@@ -10,6 +10,7 @@ defmodule TokenLedgerWeb.ReconciliationLive do
 
   use TokenLedgerWeb, :live_view
 
+  import Ecto.Query
   alias TokenLedger.ChainConfig
   alias TokenLedger.ChainEvents
   alias TokenLedger.Reconciliation.Run
