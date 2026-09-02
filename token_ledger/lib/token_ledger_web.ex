@@ -16,6 +16,7 @@ defmodule TokenLedgerWeb do
       use Phoenix.Controller, formats: [:html, :json]
 
       import Plug.Conn
+      import Phoenix.Controller, only: [action_fallback: 1, json: 2]
 
       unquote(verified_routes())
     end
