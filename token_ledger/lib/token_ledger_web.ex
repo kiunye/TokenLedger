@@ -27,8 +27,6 @@ defmodule TokenLedgerWeb do
             router: TokenLedgerWeb.Router,
             statics: TokenLedgerWeb.static_paths()
           import Phoenix.HTML
-          import Phoenix.HTML.Form
-          import Phoenix.HTML.Link
         end
 
       :live_component ->
@@ -39,22 +37,16 @@ defmodule TokenLedgerWeb do
             router: TokenLedgerWeb.Router,
             statics: TokenLedgerWeb.static_paths()
           import Phoenix.HTML
-          import Phoenix.HTML.Form
-          import Phoenix.HTML.Link
         end
 
       :html ->
         quote do
           use Phoenix.Component
-          import Phoenix.Controller,
-            only: [get_csrf_token: 0, view_module: 1, view_template: 1]
           use Phoenix.VerifiedRoutes,
             endpoint: TokenLedgerWeb.Endpoint,
             router: TokenLedgerWeb.Router,
             statics: TokenLedgerWeb.static_paths()
           import Phoenix.HTML
-          import Phoenix.HTML.Form
-          import Phoenix.HTML.Link
         end
 
       :router ->
@@ -72,22 +64,6 @@ defmodule TokenLedgerWeb do
 
       _ ->
         raise ArgumentError, "unknown use target: #{inspect(which)}"
-    end
-  end
-
-  def router do
-    quote do
-      use Phoenix.Router, helpers: false
-
-      import Plug.Conn
-      import Phoenix.Controller
-      import Phoenix.LiveView.Router
-    end
-  end
-
-  def channel do
-    quote do
-      use Phoenix.Channel
     end
   end
 end
