@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -16,12 +17,13 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: token_ledger_test
-        ports: [5432:5432]
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+        ports:
+          - 5432:5432
+        options: --health-cmd="pg_isready -U postgres" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    env:
+      MIX_ENV: test
+      ANVIL_PID: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -32,30 +34,23 @@ jobs:
           elixir-version: "1.17.x"
           otp-version: "26.x"
 
-      - name: Cache Hex packages
-        uses: actions/cache@v3
+      - name: Cache deps
+        uses: actions/cache@v4
         with:
-          path: token_ledger/deps
-          key: ${{ runner.os }}-mix-${{ hashFiles("token_ledger/mix.lock") }}
-          restore-keys: |
-            ${{ runner.os }}-mix-
+          path: |
+            token_ledger/deps
+            token_ledger/_build
+          key: ${{ runner.os }}-mix-${{ hashFiles('token_ledger/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Set up PostgreSQL secrets file
-        run: |
-          mkdir -p secrets
-          echo "postgres" > secrets/postgres_password.txt
-
       - name: Start Anvil
         run: |
           anvil --port 8545 &
-          export ANVIL_PID=$!
-          echo "Anvil started with PID $ANVIL_PID"
-          # Wait for Anvil to be ready
-          for i in {1..30}; do
-            if nc -z localhost 8545; then
+          for i in $(seq 1 30); do
+            if nc -z localhost 8545 2>/dev/null; then
               echo "Anvil is ready"
               break
             fi
@@ -76,5 +71,4 @@ jobs:
 
       - name: Stop Anvil
         if: always()
-        run: |
-          kill $ANVIL_PID || true
+        run: pkill anvil || true
