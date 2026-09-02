@@ -35,7 +35,7 @@ config :logger, level: :info
 
 # Hammer rate limiter configuration.
 config :hammer,
-  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, capacity: 100]}
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, capacity: 100, cleanup_interval_ms: 60_000]}
 
 # Phoenix endpoint base configuration (shared across envs).
 config :token_ledger, TokenLedgerWeb.Endpoint,
