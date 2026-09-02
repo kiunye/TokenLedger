@@ -57,6 +57,19 @@ defmodule TokenLedgerWeb do
           import Phoenix.HTML.Link
         end
 
+      :router ->
+        quote do
+          use Phoenix.Router, helpers: false
+          import Plug.Conn
+          import Phoenix.Controller
+          import Phoenix.LiveView.Router
+        end
+
+      :channel ->
+        quote do
+          use Phoenix.Channel
+        end
+
       _ ->
         raise ArgumentError, "unknown use target: #{inspect(which)}"
     end
