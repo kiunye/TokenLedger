@@ -12,7 +12,7 @@ defmodule TokenLedgerWeb do
   end
 
   def controller do
-    quote bind_quoted: [endpoint: __MODULE__.Endpoint] do
+    quote do
       use Phoenix.Controller, formats: [:html, :json]
 
       import Plug.Conn
