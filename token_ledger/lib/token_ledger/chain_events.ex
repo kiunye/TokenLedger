@@ -192,4 +192,86 @@ defmodule TokenLedger.ChainEvents do
     |> select([e], max(e.block_number))
     |> Repo.one()
   end
+
+  @doc """
+  Returns the most recent confirmed, non-orphaned events for `chain_id`,
+  ordered by descending block number and log index. Used by the dashboard
+  to show only finalized state.
+
+  ## Options
+
+    * `:limit` - maximum number of events to return (default: 20, max: 100)
+
+  ## Examples
+
+      iex> list_confirmed_events(31337, limit: 10)
+      [%Event{...}, ...]
+
+  """
+  @spec list_confirmed_events(integer(), keyword()) :: [Event.t()]
+  def list_confirmed_events(chain_id, opts \\ []) do
+    limit = min(Keyword.get(opts, :limit, 20), 100)
+
+    Event
+    |> where([e], e.chain_id == ^chain_id and e.confirmed and not e.orphaned)
+    |> order_by([e], desc: e.block_number, desc: e.log_index)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns confirmed, non-orphaned events for `chain_id` where the event
+  payload contains `account` as either the `from` or `to` address.
+  Used by the account LiveView and API to show confirmed event history
+  for a specific address.
+
+  Only `Transfer` events have `from`/`to` fields in the payload.
+
+  ## Options
+
+    * `:limit` - maximum number of events to return (default: 20, max: 100)
+
+  ## Examples
+
+      iex> list_confirmed_events_for_address(31337, "0x1234...", limit: 5)
+      [%Event{event_type: "transfer", payload: %{"from" => "0x1234...", ...}}, ...]
+
+  """
+  @spec list_confirmed_events_for_address(integer(), String.t(), keyword()) :: [Event.t()]
+  def list_confirmed_events_for_address(chain_id, address, opts \\ []) do
+    limit = min(Keyword.get(opts, :limit, 20), 100)
+
+    Event
+    |> where(
+      [e],
+      e.chain_id == ^chain_id and e.confirmed and not e.orphaned and
+        e.event_type == "transfer" and
+        fragment(
+          "payload->>'from' = ? OR payload->>'to' = ?",
+          ^address,
+          ^address
+        )
+    )
+    |> order_by([e], desc: e.block_number, desc: e.log_index)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns a summary of the chain's confirmed state: the highest persisted
+  block (chain head) and the highest confirmed block. The difference
+  indicates how far behind the confirmed state lags the chain tip.
+
+  Returns `%{chain_head: non_neg_integer() | nil, confirmed_head: non_neg_integer() | nil}`
+  """
+  @spec confirmed_summary(integer()) :: %{chain_head: non_neg_integer() | nil, confirmed_head: non_neg_integer() | nil}
+  def confirmed_summary(chain_id) do
+    chain_head = max_persisted_block(chain_id)
+    confirmed_head = last_confirmed_block(chain_id)
+
+    %{
+      chain_head: chain_head,
+      confirmed_head: confirmed_head
+    }
+  end
 end

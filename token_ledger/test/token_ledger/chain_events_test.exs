@@ -191,6 +191,175 @@ defmodule TokenLedger.ChainEventsTest do
     end
   end
 
+  describe "list_confirmed_events/2" do
+    test "returns only confirmed, non-orphaned events in descending order" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(10, log_index: 0),
+          event(11, log_index: 0),
+          event(12, log_index: 0),
+          event(13, log_index: 0)
+        ])
+
+      # Confirm blocks 10-11, orphan block 12
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 11)
+      {:ok, _} = ChainEvents.mark_range_orphaned(@chain_id, 12, 12)
+
+      events = ChainEvents.list_confirmed_events(@chain_id, limit: 10)
+
+      assert length(events) == 2
+      assert Enum.map(events, & &1.block_number) == [11, 10]
+      assert Enum.all?(events, & &1.confirmed)
+      assert Enum.all?(events, &(not &1.orphaned))
+    end
+
+    test "respects the limit parameter" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(1, log_index: 0),
+          event(2, log_index: 0),
+          event(3, log_index: 0)
+        ])
+
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 100)
+
+      events = ChainEvents.list_confirmed_events(@chain_id, limit: 2)
+      assert length(events) == 2
+    end
+
+    test "caps limit at 100" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(1, log_index: 0)
+        ])
+
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 100)
+
+      # Should not raise, just cap at 100
+      events = ChainEvents.list_confirmed_events(@chain_id, limit: 200)
+      assert length(events) == 1
+    end
+
+    test "returns empty list when no confirmed events exist" do
+      {:ok, _} = ChainEvents.persist_events([event(1, log_index: 0)])
+
+      events = ChainEvents.list_confirmed_events(@chain_id, limit: 10)
+      assert events == []
+    end
+  end
+
+  describe "list_confirmed_events_for_address/3" do
+    test "returns confirmed transfer events where address is sender or recipient" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(1,
+            log_index: 0,
+            event_type: "transfer",
+            payload: %{
+              "from" => "0xalice",
+              "to" => "0xbob",
+              "amount" => "100"
+            }
+          ),
+          event(2,
+            log_index: 0,
+            event_type: "transfer",
+            payload: %{
+              "from" => "0xbob",
+              "to" => "0xcharlie",
+              "amount" => "50"
+            }
+          ),
+          event(3,
+            log_index: 0,
+            event_type: "transfer",
+            payload: %{
+              "from" => "0xdave",
+              "to" => "0xalice",
+              "amount" => "200"
+            }
+          )
+        ])
+
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 100)
+
+      # Query for 0xbob: should get events from block 1 (to) and block 2 (from)
+      events = ChainEvents.list_confirmed_events_for_address(@chain_id, "0xbob", limit: 10)
+
+      assert length(events) == 2
+      block_numbers = Enum.map(events, & &1.block_number) |> Enum.sort()
+      assert block_numbers == [1, 2]
+    end
+
+    test "does not return unconfirmed events" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(1,
+            log_index: 0,
+            event_type: "transfer",
+            payload: %{"from" => "0xalice", "to" => "0xbob", "amount" => "100"}
+          ),
+          event(2,
+            log_index: 0,
+            event_type: "transfer",
+            payload: %{"from" => "0xbob", "to" => "0xcharlie", "amount" => "50"}
+          )
+        ])
+
+      # Only confirm block 1
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 1)
+
+      events = ChainEvents.list_confirmed_events_for_address(@chain_id, "0xbob", limit: 10)
+      assert length(events) == 1
+      assert hd(events).block_number == 1
+    end
+
+    test "does not return non-transfer events" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(1,
+            log_index: 0,
+            event_type: "compliance_updated",
+            payload: %{"account" => "0xbob", "whitelisted" => true}
+          ),
+          event(2,
+            log_index: 0,
+            event_type: "transfer",
+            payload: %{"from" => "0xbob", "to" => "0xcharlie", "amount" => "50"}
+          )
+        ])
+
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 100)
+
+      events = ChainEvents.list_confirmed_events_for_address(@chain_id, "0xbob", limit: 10)
+      assert length(events) == 1
+      assert hd(events).event_type == "transfer"
+    end
+  end
+
+  describe "confirmed_summary/1" do
+    test "returns chain_head and confirmed_head" do
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(10, log_index: 0),
+          event(11, log_index: 0),
+          event(12, log_index: 0)
+        ])
+
+      {:ok, _} = ChainEvents.confirm_through(@chain_id, 11)
+
+      summary = ChainEvents.confirmed_summary(@chain_id)
+      assert summary.chain_head == 12
+      assert summary.confirmed_head == 11
+    end
+
+    test "returns nils when no events exist" do
+      summary = ChainEvents.confirmed_summary(@chain_id)
+      assert summary.chain_head == nil
+      assert summary.confirmed_head == nil
+    end
+  end
+
   defp three_events do
     [event(1), event(2), event(3)]
   end
