@@ -7,66 +7,58 @@ defmodule TokenLedgerWeb do
 
   def static_paths, do: ~w(app.css favicon.ico robots.txt)
 
-  def __using__(which) when which in [:controller, :live_view, :live_component, :html] do
-    apply(__MODULE__, which, [])
-  end
+  defmacro __using__(which) do
+    case which do
+      :controller ->
+        quote do
+          use Phoenix.Controller, formats: [:html, :json]
+          import Plug.Conn
+          use Phoenix.VerifiedRoutes,
+            endpoint: TokenLedgerWeb.Endpoint,
+            router: TokenLedgerWeb.Router,
+            statics: TokenLedgerWeb.static_paths()
+        end
 
-  def controller do
-    quote do
-      use Phoenix.Controller, formats: [:html, :json]
+      :live_view ->
+        quote do
+          use Phoenix.LiveView
+          use Phoenix.VerifiedRoutes,
+            endpoint: TokenLedgerWeb.Endpoint,
+            router: TokenLedgerWeb.Router,
+            statics: TokenLedgerWeb.static_paths()
+          import Phoenix.HTML
+          import Phoenix.HTML.Form
+          import Phoenix.HTML.Link
+        end
 
-      import Plug.Conn
+      :live_component ->
+        quote do
+          use Phoenix.LiveComponent
+          use Phoenix.VerifiedRoutes,
+            endpoint: TokenLedgerWeb.Endpoint,
+            router: TokenLedgerWeb.Router,
+            statics: TokenLedgerWeb.static_paths()
+          import Phoenix.HTML
+          import Phoenix.HTML.Form
+          import Phoenix.HTML.Link
+        end
 
-      unquote(verified_routes())
-    end
-  end
+      :html ->
+        quote do
+          use Phoenix.Component
+          import Phoenix.Controller,
+            only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+          use Phoenix.VerifiedRoutes,
+            endpoint: TokenLedgerWeb.Endpoint,
+            router: TokenLedgerWeb.Router,
+            statics: TokenLedgerWeb.static_paths()
+          import Phoenix.HTML
+          import Phoenix.HTML.Form
+          import Phoenix.HTML.Link
+        end
 
-  def live_view do
-    quote bind_quoted: [endpoint: __MODULE__.Endpoint] do
-      use Phoenix.LiveView
-
-      unquote(html_helpers())
-    end
-  end
-
-  def live_component do
-    quote bind_quoted: [endpoint: __MODULE__.Endpoint] do
-      use Phoenix.LiveComponent
-
-      unquote(html_helpers())
-    end
-  end
-
-  def html do
-    quote do
-      use Phoenix.Component
-
-      import Phoenix.Controller,
-        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
-
-      unquote(html_helpers())
-    end
-  end
-
-  defp html_helpers do
-    quote do
-      import Phoenix.HTML
-      import Phoenix.HTML.Form
-      import Phoenix.HTML.Link
-
-      use Phoenix.VerifiedRoutes,
-        endpoint: TokenLedgerWeb.Endpoint,
-        router: TokenLedgerWeb.Router,
-        statics: TokenLedgerWeb.static_paths()
-    end
-  end
-
-  defp verified_routes do
-    quote do
-      use Phoenix.VerifiedRoutes,
-        endpoint: TokenLedgerWeb.Endpoint,
-        router: TokenLedgerWeb.Router,
-        statics: TokenLedgerWeb.static_paths()
+      _ ->
+        raise ArgumentError, "unknown use target: #{inspect(which)}"
     end
   end
 

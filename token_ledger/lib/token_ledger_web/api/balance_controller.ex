@@ -8,7 +8,6 @@ defmodule TokenLedgerWeb.Api.BalanceController do
   """
 
   use TokenLedgerWeb, :controller
-  import Phoenix.Controller, only: [json: 2]
 
   alias TokenLedger.Projections.Balance
   alias TokenLedger.Repo
