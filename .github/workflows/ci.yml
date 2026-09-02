@@ -46,6 +46,11 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Create Postgres secrets file
+        run: |
+          mkdir -p secrets
+          echo "postgres" > secrets/postgres_password.txt
+
       - name: Start Anvil
         run: |
           anvil --port 8545 &
