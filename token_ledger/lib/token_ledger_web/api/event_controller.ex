@@ -7,6 +7,7 @@ defmodule TokenLedgerWeb.Api.EventController do
   """
 
   use TokenLedgerWeb, :controller
+  import Phoenix.Controller, only: [json: 2]
 
   alias TokenLedger.ChainConfig
   alias TokenLedger.ChainEvents

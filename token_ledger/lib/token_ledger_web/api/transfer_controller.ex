@@ -10,6 +10,7 @@ defmodule TokenLedgerWeb.Api.TransferController do
   """
 
   use TokenLedgerWeb, :controller
+  import Phoenix.Controller, only: [json: 2]
 
   alias TokenLedger.Accounts.Account
   alias TokenLedger.Projections.Balance
