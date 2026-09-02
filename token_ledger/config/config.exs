@@ -33,6 +33,10 @@ config :token_ledger, Oban,
 
 config :logger, level: :info
 
+# Hammer rate limiter configuration.
+config :hammer,
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, capacity: 100]}
+
 # Phoenix endpoint base configuration (shared across envs).
 config :token_ledger, TokenLedgerWeb.Endpoint,
   url: [host: "localhost"],
