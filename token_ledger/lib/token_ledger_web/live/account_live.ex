@@ -78,10 +78,10 @@ defmodule TokenLedgerWeb.AccountLive do
                     <%= event.block_number %>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
-                    <%= event.payload["from"] |> String.slice(0, 10) <> "..." %>
+                    <%= event.payload["from"] |> String.slice(0, 10) |> Kernel.<>("...") %>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
-                    <%= event.payload["to"] |> String.slice(0, 10) <> "..." %>
+                    <%= event.payload["to"] |> String.slice(0, 10) |> Kernel.<>("...") %>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <%= event.payload["amount"] %>
