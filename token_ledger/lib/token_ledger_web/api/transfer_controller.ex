@@ -15,8 +15,6 @@ defmodule TokenLedgerWeb.Api.TransferController do
   alias TokenLedger.Projections.Balance
   alias TokenLedger.Repo
 
-  action_fallback TokenLedgerWeb.FallbackController
-
   def simulate(conn, %{"from" => from, "to" => to, "amount" => amount_str}) do
     with {:ok, amount} <- parse_amount(amount_str),
          {:ok, _sender} <- check_whitelisted(from, :sender_not_whitelisted),

@@ -11,8 +11,6 @@ defmodule TokenLedgerWeb.Api.EventController do
   alias TokenLedger.ChainConfig
   alias TokenLedger.ChainEvents
 
-  action_fallback TokenLedgerWeb.FallbackController
-
   def index(conn, params) do
     limit = parse_limit(params["limit"])
     chain_id = ChainConfig.chain_id()

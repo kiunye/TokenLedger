@@ -12,8 +12,6 @@ defmodule TokenLedgerWeb.Api.BalanceController do
   alias TokenLedger.Projections.Balance
   alias TokenLedger.Repo
 
-  action_fallback TokenLedgerWeb.FallbackController
-
   def show(conn, %{"address" => address}) do
     balance =
       case Repo.get(Balance, address) do

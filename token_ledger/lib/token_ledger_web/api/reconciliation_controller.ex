@@ -15,8 +15,6 @@ defmodule TokenLedgerWeb.Api.ReconciliationController do
   alias TokenLedger.Repo
   import Ecto.Query
 
-  action_fallback TokenLedgerWeb.FallbackController
-
   def status(conn, _params) do
     chain_id = ChainConfig.chain_id()
 
