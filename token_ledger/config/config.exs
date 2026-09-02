@@ -33,9 +33,11 @@ config :token_ledger, Oban,
 
 config :logger, level: :info
 
-# Hammer rate limiter configuration.
+# Hammer rate limiter configuration (single :single backend, ETS-backed).
+# `expiry_ms` must exceed the largest scale_ms any check_rate call uses;
+# `cleanup_interval_ms` bounds how often expired buckets get pruned.
 config :hammer,
-  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, capacity: 100, cleanup_interval_ms: 60_000]}
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, cleanup_interval_ms: 60_000]}
 
 # Phoenix endpoint base configuration (shared across envs).
 config :token_ledger, TokenLedgerWeb.Endpoint,
