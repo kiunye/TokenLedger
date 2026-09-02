@@ -19,9 +19,9 @@ defmodule TokenLedgerWeb.Api.TransferController do
 
   def simulate(conn, %{"from" => from, "to" => to, "amount" => amount_str}) do
     with {:ok, amount} <- parse_amount(amount_str),
-         {:ok, sender} <- check_whitelisted(from),
-         {:ok, recipient} <- check_whitelisted(to),
-         {:ok, balance} <- check_balance(from, amount) do
+         {:ok, _sender} <- check_whitelisted(from, :sender_not_whitelisted),
+         {:ok, _recipient} <- check_whitelisted(to, :recipient_not_whitelisted),
+         {:ok, _balance} <- check_balance(from, amount) do
       json(conn, %{
         "success" => true,
         "from" => from,
@@ -67,11 +67,11 @@ defmodule TokenLedgerWeb.Api.TransferController do
   end
   defp parse_amount(_), do: {:error, :invalid_amount}
 
-  defp check_whitelisted(address) do
+  defp check_whitelisted(address, error_atom) do
     case Repo.get(Account, address) do
-      nil -> {:error, :sender_not_whitelisted}
+      nil -> {:error, error_atom}
       account ->
-        if account.whitelisted, do: {:ok, account}, else: {:error, :sender_not_whitelisted}
+        if account.whitelisted, do: {:ok, account}, else: {:error, error_atom}
     end
   end
 
