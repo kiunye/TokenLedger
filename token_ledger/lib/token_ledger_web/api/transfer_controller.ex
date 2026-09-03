@@ -77,7 +77,7 @@ defmodule TokenLedgerWeb.Api.TransferController do
     case Repo.get(Balance, address) do
       nil -> {:error, :insufficient_balance}
       balance ->
-        if Decimal.ge?(balance.amount, amount), do: {:ok, balance}, else: {:error, :insufficient_balance}
+        if Decimal.gte?(balance.amount, amount), do: {:ok, balance}, else: {:error, :insufficient_balance}
     end
   end
 end
