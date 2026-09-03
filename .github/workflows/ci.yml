@@ -27,6 +27,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Elixir and Erlang
         uses: erlef/setup-beam@v1
@@ -72,7 +74,7 @@ jobs:
         run: cd token_ledger && mix test
 
       - name: Run Foundry tests
-        run: cd token_ledger && forge test
+        run: forge test
 
       - name: Stop Anvil
         if: always()
