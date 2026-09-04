@@ -72,6 +72,12 @@ Linux/Unix so the spawned executable is reliably reaped.
     {:reply, state.rpc_url, state}
   end
 
+  # Ignore anything Anvil emits on its STDOUT/STDERR; we drive it via HTTP,
+  # not via Port I/O. Without this clause every line logs an
+  # "unexpected message" error.
+  @impl true
+  def handle_info({_port, _msg}, state), do: {:noreply, state}
+
   @impl true
   def terminate(_reason, %{port: port}) do
     case Port.info(port, :os_pid) do
@@ -95,12 +101,14 @@ Linux/Unix so the spawned executable is reliably reaped.
   # Kill the spawned OS process tree. taskkill /T /F is Windows-only;
   # on Linux/Unix a plain SIGKILL via kill achieves the same reaping.
   defp kill_os_pid(os_pid) do
-    if System.type() == :windows do
-      System.cmd("taskkill", ["/PID", Integer.to_string(os_pid), "/T", "/F"],
-        stderr_to_stdout: true
-      )
-    else
-      System.cmd("kill", ["-9", Integer.to_string(os_pid)])
+    case :os.type() do
+      {:win32, _} ->
+        System.cmd("taskkill", ["/PID", Integer.to_string(os_pid), "/T", "/F"],
+          stderr_to_stdout: true
+        )
+
+      _ ->
+        System.cmd("kill", ["-9", Integer.to_string(os_pid)])
     end
   end
 
