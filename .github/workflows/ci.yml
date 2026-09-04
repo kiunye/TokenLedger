@@ -23,10 +23,12 @@ jobs:
 
     env:
       MIX_ENV: test
-      ANVIL_PID: ""
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
 
       - name: Set up Elixir and Erlang
         uses: erlef/setup-beam@v1
@@ -51,17 +53,6 @@ jobs:
           mkdir -p secrets
           echo "postgres" > secrets/postgres_password.txt
 
-      - name: Start Anvil
-        run: |
-          anvil --port 8545 &
-          for i in $(seq 1 30); do
-            if nc -z localhost 8545 2>/dev/null; then
-              echo "Anvil is ready"
-              break
-            fi
-            sleep 1
-          done
-
       - name: Install dependencies
         run: cd token_ledger && mix deps.get
 
@@ -72,7 +63,7 @@ jobs:
         run: cd token_ledger && mix test
 
       - name: Run Foundry tests
-        run: cd token_ledger && forge test
+        run: forge test
 
       - name: Stop Anvil
         if: always()
