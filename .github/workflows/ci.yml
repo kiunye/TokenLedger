@@ -53,17 +53,6 @@ jobs:
           mkdir -p secrets
           echo "postgres" > secrets/postgres_password.txt
 
-      - name: Start Anvil
-        run: |
-          anvil --port 8545 &
-          for i in $(seq 1 30); do
-            if nc -z localhost 8545 2>/dev/null; then
-              echo "Anvil is ready"
-              break
-            fi
-            sleep 1
-          done
-
       - name: Install dependencies
         run: cd token_ledger && mix deps.get
 

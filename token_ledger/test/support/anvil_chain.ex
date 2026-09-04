@@ -1,14 +1,14 @@
 defmodule TokenLedger.Test.AnvilChain do
-  @moduledoc """
-  Test-only manager for one local Anvil node.
+@moduledoc """
+Test-only manager for one local Anvil node.
 
-  Started detached (`GenServer.start/3`, deliberately not `start_link`) so it
-  survives the death of the ExUnit setup process that launched it: ports die
-  with their owner, and the owner of `setup_all` is not guaranteed to outlive
-  the module's tests. The integration case stops the node in an `on_exit`
-  hook. On Windows the node is torn down with `taskkill /T /F` because a bare
-  port close does not reliably terminate the spawned executable.
-  """
+Started detached (`GenServer.start/3`, deliberately not `start_link`) so it
+survives the death of the ExUnit setup process that launched it: ports die
+with their owner, and the owner of `setup_all` is not guaranteed to outlive
+the module's tests. The integration case stops the node in an `on_exit`
+hook. Teardown uses `taskkill /T /F` on Windows and `kill -9` on
+Linux/Unix so the spawned executable is reliably reaped.
+"""
 
   use GenServer
 
@@ -76,16 +76,13 @@ defmodule TokenLedger.Test.AnvilChain do
   def terminate(_reason, %{port: port}) do
     case Port.info(port, :os_pid) do
       {:os_pid, os_pid} ->
-        System.cmd("taskkill", ["/PID", Integer.to_string(os_pid), "/T", "/F"],
-          stderr_to_stdout: true
-        )
+        kill_os_pid(os_pid)
 
       nil ->
         :ok
     end
 
-    # taskkill /T /F has already reaped the OS process tree; closing the now
-    # dead port raises, so guard it. The VM reclaims the port either way.
+    # The port is dead or its process was killed; close it idempotently.
     try do
       Port.close(port)
     rescue
@@ -93,6 +90,18 @@ defmodule TokenLedger.Test.AnvilChain do
     end
 
     :ok
+  end
+
+  # Kill the spawned OS process tree. taskkill /T /F is Windows-only;
+  # on Linux/Unix a plain SIGKILL via kill achieves the same reaping.
+  defp kill_os_pid(os_pid) do
+    if System.type() == :windows do
+      System.cmd("taskkill", ["/PID", Integer.to_string(os_pid), "/T", "/F"],
+        stderr_to_stdout: true
+      )
+    else
+      System.cmd("kill", ["-9", Integer.to_string(os_pid)])
+    end
   end
 
   defp find_anvil! do
