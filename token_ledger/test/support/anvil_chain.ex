@@ -61,7 +61,16 @@ Linux/Unix so the spawned executable is reliably reaped.
         :binary,
         :exit_status,
         :hide,
-        args: ["--port", Integer.to_string(port_number)]
+        args: [
+          "--port",
+          Integer.to_string(port_number),
+          # Force a 1 ms block time so load scripts that submit hundreds of
+          # txs in flight don't outpace the chain and leave the test racing
+          # ahead of the canonical head. Anvil's default is auto-mine-on-tx,
+          # but Linux CI has shown that to lag on heavy bursts.
+          "--block-time",
+          "1"
+        ]
       ])
 
     {:ok, %{port: port, rpc_url: "http://127.0.0.1:#{port_number}"}}
