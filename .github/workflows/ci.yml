@@ -23,12 +23,12 @@ jobs:
 
     env:
       MIX_ENV: test
-      ANVIL_PID: ""
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Set up Elixir and Erlang
         uses: erlef/setup-beam@v1
