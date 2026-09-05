@@ -114,7 +114,7 @@ defmodule TokenLedger.ReorgWatcher do
       case detect_fork(state, tip) do
         :no_fork -> state
         :over_depth -> incident(state, tip)
-        {:fork, fork_block} -> correct(state, fork_block)
+        {:fork, fork_block} -> correct(state, fork_block, tip)
       end
     end
   end
@@ -211,9 +211,16 @@ defmodule TokenLedger.ReorgWatcher do
     state
   end
 
-  defp correct(state, fork_block) do
+  defp correct(state, fork_block, tip) do
     rollback_floor = fork_block + 1
-    pre_orphan_tip = state.tip_number
+    # `pre_orphan_tip` is the chain tip *as observed by this cycle*, not the
+    # `state.tip_number` carried over from `adopt_tip` on the previous tick
+    # (which can lag the canonical head when Anvil is slow and our `fetch_tip`
+    # defers). The canonical view of the replacement window is what we just
+    # fetched; using the older state.tip_number would orphan blocks the chain
+    # never replaced, falsely inflate the recorded depth, and trigger
+    # listener rewinds into ranges we never mined.
+    pre_orphan_tip = tip.number
 
     {:ok, %{orphaned_count: orphaned_count, reorg: reorg}} =
       Repo.transaction(fn ->
