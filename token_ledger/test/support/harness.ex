@@ -128,6 +128,21 @@ defmodule TokenLedger.Test.Harness do
   end
 
   @doc """
+  Blocks until the canonical chain has reached at least `min_height`, flunking
+  on deadline. Used to guarantee a chain has produced enough blocks for a
+  subsequent `anvil_reorg(depth)` to be valid (depth must not exceed height),
+  and to give the listener a tail of mined blocks past the last event.
+  """
+  @spec await_chain_height!(pos_integer(), String.t(), pos_integer(), String.t()) :: :ok
+  def await_chain_height!(deadline_ms, rpc_url, min_height, label) do
+    wait_until!(
+      deadline_ms,
+      fn -> height!(rpc_url) >= min_height end,
+      label
+    )
+  end
+
+  @doc """
   Forces a real chain reorganization: the last `depth` canonical blocks are
   replaced by freshly mined competitors at the same heights, with new block
   hashes. `tx_block_pairs` optionally supplies `[tx, block_height]` pairs
