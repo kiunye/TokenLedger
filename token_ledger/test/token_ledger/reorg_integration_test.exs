@@ -172,12 +172,7 @@ defmodule TokenLedger.ReorgIntegrationTest do
     await_ingestion(rpc_url)
 
     # Deep enough to reach event blocks even when foreign-contract txs fill
-    # the very top of the chain. `anvil_reorg` rejects depth > height, so we
-    # gate on a minimum chain tip (depth + small buffer) rather than relying
-    # on `await_ingestion` alone — that helper can return during a momentary
-    # listener-ahead-of-tip window even when the chain isn't producing
-    # blocks, which has caused CI flakes under load.
-    await_chain_height!(@catchup_timeout, rpc_url, 12, "chain tall enough for depth-8 reorg")
+    # the very top of the chain.
     reorg!(rpc_url, 8)
 
     wait_until!(@catchup_timeout, fn ->
@@ -258,33 +253,11 @@ defmodule TokenLedger.ReorgIntegrationTest do
   end
 
   defp await_ingestion(rpc_url) do
-    # First sync, then stability. `next_block > height` is satisfied any time
-    # the listener's cursor briefly leads the chain tip, so a single passing
-    # sample can occur even when the chain has stopped advancing. Requiring
-    # the lead to hold across several poll cycles (separated by sleeps long
-    # enough that Anvil's `--block-time 1` can mine between them) ensures the
-    # chain is genuinely producing blocks.
     wait_until!(@catchup_timeout, fn ->
       height = height!(rpc_url)
       next = safe_next_block()
       is_integer(next) and next > height
     end, "ingestion caught up to tip")
-
-    for _ <- 1..3 do
-      Process.sleep(150)
-
-      unless synced?(rpc_url) do
-        wait_until!(@catchup_timeout, fn -> synced?(rpc_url) end, "ingestion re-synced")
-      end
-    end
-
-    :ok
-  end
-
-  defp synced?(rpc_url) do
-    height = height!(rpc_url)
-    next = safe_next_block()
-    is_integer(next) and next > height
   end
 
   defp await_cursor_past(target) do
