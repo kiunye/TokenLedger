@@ -7,7 +7,7 @@ defmodule TokenLedgerWeb.Api.ReconciliationControllerTest do
   alias TokenLedger.Repo
   import Ecto.Query
 
-  @chain_id 31337
+  @chain_id 99_999
 
   setup do
     Repo.delete_all(from(e in Event, where: e.chain_id == ^@chain_id))
