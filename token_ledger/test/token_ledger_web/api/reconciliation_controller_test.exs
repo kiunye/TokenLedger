@@ -34,7 +34,7 @@ defmodule TokenLedgerWeb.Api.ReconciliationControllerTest do
       conn = get(build_conn(), "/api/reconciliation/status")
 
       assert %{
-               "chain_id" => 31337,
+               "chain_id" => 99_999,
                "chain_head" => 6,
                "confirmed_head" => 6,
                "lag" => 0,

@@ -18,6 +18,11 @@ defmodule TokenLedger.Test.ChainApp do
   def start(contract_address) do
     stop()
     Application.put_env(:token_ledger, :contract_address, String.downcase(contract_address))
+    # Pin the integration chain so the listener (whose `init/1` reads
+    # `ChainConfig.chain_id/0` once and caches it) cannot pick up a value
+    # left behind by a concurrently-running controller test, which routes
+    # HTTP requests to a different chain to isolate fixture deletes.
+    Application.put_env(:token_ledger, :chain_id, 31_337)
 
     case GenServer.start(__MODULE__, :ok, name: __MODULE__) do
       {:ok, _holder} -> :ok

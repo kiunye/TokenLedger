@@ -44,6 +44,7 @@ defmodule TokenLedger.IngestionIntegrationTest do
       Application.delete_env(:token_ledger, :contract_address)
       Application.delete_env(:token_ledger, :rpc_url)
       Application.delete_env(:token_ledger, :poll_interval_ms)
+      Application.delete_env(:token_ledger, :chain_id)
     end)
 
     %{rpc_url: rpc_url}

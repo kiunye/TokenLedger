@@ -8,15 +8,14 @@ defmodule TokenLedgerWeb.Api.ConnCase do
 
   Pins `:token_ledger, :chain_id` to a non-default value for the lifetime of
   every test in this case template. Integration suites own chain 31_337
-  (Anvil default) and share the same database; without this override,
-  controller test `delete_all` calls would wipe in-flight integration rows,
-  and `Application.put_env(:chain_id, 31_337)` in an integration `setup_all`
-  could be observed by a concurrent controller test (reversing the fix on
-  the way out). The integration tests reassert 31_337 in their own
-  `setup_all`, so any controller that runs first gets overwritten by the
-  integration setup before the listener ever calls `ChainConfig.chain_id/0`,
-  and any integration `setup_all` that runs first restores 31_337 before
-  the controller's test process touches the env again.
+  (Anvil default) and share the same database; controller fixtures clear
+  `chain_events` rows in setup to get a clean assertion surface, which would
+  otherwise wipe in-flight integration rows. By routing every controller
+  request through `ChainConfig` to 99_999, the controller test's fixtures
+  and queries stay self-consistent on chain 99_999 and never touch chain
+  31_337's rows. The integration tests' setup_all explicitly re-asserts
+  31_337 just before each `ChainApp.start` so the listener always sees its
+  intended chain regardless of test interleaving.
   """
   use ExUnit.CaseTemplate
 
