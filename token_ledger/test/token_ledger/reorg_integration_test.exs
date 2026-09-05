@@ -49,12 +49,13 @@ defmodule TokenLedger.ReorgIntegrationTest do
   test "anvil reorg smoke: forced fork changes canonical hashes", %{rpc_url: rpc_url} do
     deploy = deploy_and_start(rpc_url)
 
-    emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url)
+    run = emit(rpc_url, 1, deploy.registry_address)
+    await_ingestion(rpc_url, run.expected_events)
 
     h = height!(rpc_url)
     before = block_hash!(rpc_url, h)
 
+    await_chain_height!(@catchup_timeout, rpc_url, h, "chain tall enough for depth-1 reorg")
     reorg!(rpc_url, 1)
 
     after_hash = poll_hash_change(rpc_url, h, before)
@@ -72,14 +73,18 @@ defmodule TokenLedger.ReorgIntegrationTest do
     ChainApp.start(deploy.registry_address)
 
     run = emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url)
+    await_ingestion(rpc_url, run.expected_events)
 
     pre_tip = height!(rpc_url)
     pre_live = live_rows()
     assert length(pre_live) == run.expected_events
 
     # Replace the top of the chain — the freshly emitted events sit inside
-    # the replaced window.
+    # the replaced window. The chain must be at least `depth` blocks tall
+    # (Anvil rejects shallower); with `await_ingestion` we have at least one
+    # event fanned out, but Anvil may still be mid-flight on the remaining
+    # phase-1 transactions, so gate explicitly.
+    await_chain_height!(@catchup_timeout, rpc_url, 5, "chain tall enough for depth-3 reorg")
     reorg!(rpc_url, 3)
 
     # Deadline-bounded resolution: the watcher must detect, orphan, rewind,
@@ -117,8 +122,8 @@ defmodule TokenLedger.ReorgIntegrationTest do
     Application.put_env(:token_ledger, :contract_address, String.downcase(deploy.registry_address))
     ChainApp.start(deploy.registry_address)
 
-    emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url)
+    run = emit(rpc_url, 1, deploy.registry_address)
+    await_ingestion(rpc_url, run.expected_events)
 
     # Mine quiet blocks so the replaced window contains no watched events.
     mine_empty(4)
@@ -138,6 +143,7 @@ defmodule TokenLedger.ReorgIntegrationTest do
 
     live_before = Enum.count(live_rows())
 
+    await_chain_height!(@catchup_timeout, rpc_url, height!(rpc_url) + 2, "chain tall enough for depth-2 reorg")
     reorg!(rpc_url, 2)
 
     wait_until!(@catchup_timeout, fn ->
@@ -168,11 +174,12 @@ defmodule TokenLedger.ReorgIntegrationTest do
     Application.put_env(:token_ledger, :contract_address, String.downcase(deploy.registry_address))
     ChainApp.start(deploy.registry_address)
 
-    emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url)
+    run = emit(rpc_url, 1, deploy.registry_address)
+    await_ingestion(rpc_url, run.expected_events)
 
     # Deep enough to reach event blocks even when foreign-contract txs fill
     # the very top of the chain.
+    await_chain_height!(@catchup_timeout, rpc_url, 12, "chain tall enough for depth-8 reorg")
     reorg!(rpc_url, 8)
 
     wait_until!(@catchup_timeout, fn ->
@@ -252,12 +259,14 @@ defmodule TokenLedger.ReorgIntegrationTest do
     end)
   end
 
-  defp await_ingestion(rpc_url) do
+  defp await_ingestion(rpc_url, expected_count \\ 0) do
     wait_until!(@catchup_timeout, fn ->
+      ingested = ChainEvents.live_count(@chain_id) >= expected_count
       height = height!(rpc_url)
       next = safe_next_block()
-      is_integer(next) and next > height
-    end, "ingestion caught up to tip")
+      cursor_past_tip = is_integer(next) and next > height
+      cursor_past_tip and ingested
+    end, "ingestion caught up to tip with #{expected_count} live event(s)")
   end
 
   defp await_cursor_past(target) do

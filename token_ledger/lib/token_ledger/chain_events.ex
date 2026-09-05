@@ -143,6 +143,14 @@ defmodule TokenLedger.ChainEvents do
     |> Repo.aggregate(:count)
   end
 
+  @doc "Total non-orphaned events for a chain. Test helper."
+  @spec live_count(integer()) :: non_neg_integer()
+  def live_count(chain_id) do
+    Event
+    |> where([e], e.chain_id == ^chain_id and not e.orphaned)
+    |> Repo.aggregate(:count)
+  end
+
   @doc """
   Number of distinct (block_number) values with at least one persisted event.
   """

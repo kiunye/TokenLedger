@@ -164,6 +164,23 @@ defmodule TokenLedger.Test.Harness do
     Ethereumex.HttpClient.eth_get_logs(filter, url: rpc_url)
   end
 
+  @doc """
+  Blocks until the canonical chain has reached at least `min_height`,
+  flunking on deadline. Anvil's `anvil_reorg(depth)` rejects calls whose
+  depth exceeds the current tip, so integration tests must guarantee the
+  chain is tall enough before invoking it. Bare `await_ingestion` cannot
+  enforce this because the listener's cursor can read past the tip before
+  the corresponding blocks are mined.
+  """
+  @spec await_chain_height!(pos_integer(), String.t(), pos_integer(), String.t()) :: :ok
+  def await_chain_height!(deadline_ms, rpc_url, min_height, label) do
+    wait_until!(
+      deadline_ms,
+      fn -> height!(rpc_url) >= min_height end,
+      label
+    )
+  end
+
   defp find_forge! do
     System.find_executable("forge") ||
       foundry_fallback("forge.exe") ||
