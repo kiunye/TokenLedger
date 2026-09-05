@@ -19,6 +19,7 @@ defmodule TokenLedgerWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug TokenLedgerWeb.Plugs.RateLimiter
   end
 
   scope "/", TokenLedgerWeb do

@@ -238,7 +238,19 @@ defmodule TokenLedger.ReorgWatcher do
 
     GenServer.cast(state.listener, {:rewind, rollback_floor})
 
-    %{state | pending_correction: %{reorg: reorg, fork_block: fork_block, pre_orphan_tip: pre_orphan_tip}}
+    # Drop the orphan-window from the remembered map so the next cycle's
+    # `fill_window` re-fetches these heights from the chain (now canonical)
+    # instead of comparing against pre-reorg hashes that would mismatch and
+    # trigger a spurious second detection while the listener is still
+    # re-ingesting.
+    forgotten =
+      state.remembered
+      |> Enum.reject(fn {height, _hash} -> height >= rollback_floor and height <= pre_orphan_tip end)
+      |> Map.new()
+
+    %{state |
+      pending_correction: %{reorg: reorg, fork_block: fork_block, pre_orphan_tip: pre_orphan_tip},
+      remembered: forgotten}
   end
 
   # Resolution: the listener has re-ingested through the pre-orphan tip.

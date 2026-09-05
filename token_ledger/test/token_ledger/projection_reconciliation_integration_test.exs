@@ -72,8 +72,8 @@ defmodule TokenLedger.ProjectionReconciliationIntegrationTest do
 
     # Mint, then transfer/compliance — leave an unconfirmed tail to make the
     # restart meaningful (the listener must resume past it, not re-live it).
-    emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url)
+    run = emit(rpc_url, 1, deploy.registry_address)
+    await_ingestion(rpc_url, run.expected_events)
     emit(rpc_url, 2, deploy.registry_address)
 
     # Kill the listener mid-stream, before the second batch is fully confirmed
@@ -174,12 +174,14 @@ defmodule TokenLedger.ProjectionReconciliationIntegrationTest do
     Repo.delete_all(from(c in TokenLedger.Projections.Checkpoint, where: c.chain_id == ^@chain_id))
   end
 
-  defp await_ingestion(rpc_url) do
+  defp await_ingestion(rpc_url, expected_count \\ 0) do
     wait_until!(@settle_timeout, fn ->
+      ingested = ChainEvents.live_count(@chain_id) >= expected_count
       height = height!(rpc_url)
       next = safe_next_block()
-      is_integer(next) and next > height
-    end, "ingestion caught up to tip")
+      cursor_past_tip = is_integer(next) and next > height
+      cursor_past_tip and ingested
+    end, "ingestion caught up to tip with #{expected_count} live event(s)")
   end
 
   # Ingestion + watcher confirmation + projection all settled, and the DB
