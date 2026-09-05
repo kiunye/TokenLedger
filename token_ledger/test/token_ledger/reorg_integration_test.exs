@@ -173,7 +173,12 @@ defmodule TokenLedger.ReorgIntegrationTest do
     await_ingestion(rpc_url)
 
     # Deep enough to reach event blocks even when foreign-contract txs fill
-    # the very top of the chain.
+    # the very top of the chain. `anvil_reorg` rejects depth > height, so we
+    # gate on a minimum chain tip (depth + small buffer) rather than relying
+    # on `await_ingestion` alone — that helper can return during a momentary
+    # listener-ahead-of-tip window even when the chain isn't producing
+    # blocks, which has caused CI flakes under load.
+    await_chain_height!(@catchup_timeout, rpc_url, 12, "chain tall enough for depth-8 reorg")
     reorg!(rpc_url, 8)
 
     wait_until!(@catchup_timeout, fn ->
