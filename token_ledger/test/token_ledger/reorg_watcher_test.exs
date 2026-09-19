@@ -164,6 +164,90 @@ defmodule TokenLedger.ReorgWatcherTest do
     end
   end
 
+  describe "reorg observed after the tip advanced" do
+    # Production shape: the chain (1s block time) can out-run a stalled
+    # watcher cycle (serialized RPC pool, CI load). Detection must anchor on
+    # remembered evidence, not on the current tip, and the rollback window
+    # is measured from the OBSERVED tip: growth consumes finality slack, so
+    # a fork observed past the confirmation horizon is an incident, not a
+    # correction (decision 6).
+    setup do
+      ChainSim.set_blocks(ChainWorld.linear(20))
+      :ok = ReorgWatcher.cycle_now(@watcher)
+      seed_events([19])
+      :ok
+    end
+
+    test "two blocks of growth still detect and roll back a replaced tip" do
+      # Top block replaced (fork 18); canonical chain extends to 21 while
+      # the watcher was blind. Observed depth 21 - 18 = 3 == window: the
+      # rows have NOT crossed the finality horizon, so this must correct.
+      ChainSim.set_blocks(ChainWorld.forked(ChainWorld.linear(20), 19, 19, 21))
+      :ok = ReorgWatcher.cycle_now(@watcher)
+
+      assert_rewind(19)
+
+      [reorg] = ReorgEvents.list(@chain_id)
+      assert reorg.fork_block == 18
+      assert reorg.depth == 3
+      assert reorg.events_orphaned == 1
+      assert reorg.resolved_at == nil
+
+      # Stale pre-reorg evidence is retained but no longer live: exactly
+      # one row exists and it is orphaned.
+      rows = all_rows()
+      assert Enum.count(rows, & &1.orphaned) == 1
+      assert Enum.all?(rows, & &1.orphaned)
+
+      # Resolution once the listener refetches through the pre-orphan tip.
+      {:ok, _} =
+        ChainEvents.persist_events([
+          event(21, block_hash: ChainWorld.hash("b", 21), log_index: 0)
+        ])
+
+      :ok = ReorgWatcher.cycle_now(@watcher)
+
+      [reorg] = ReorgEvents.list(@chain_id)
+      assert %DateTime{} = reorg.resolved_at
+      assert reorg.events_reapplied == 1
+    end
+
+    test "growth past the finality horizon records an over-depth incident" do
+      # Same one-block replacement, but the watcher was blind for three
+      # canonical advances: observed depth 22 - 18 = 4 > window 3. The
+      # replaced rows may already be confirmed territory, so decision 6
+      # demands an unresolved incident instead of an automatic rollback.
+      ChainSim.set_blocks(ChainWorld.forked(ChainWorld.linear(20), 19, 19, 22))
+      :ok = ReorgWatcher.cycle_now(@watcher)
+
+      refute_rewind()
+
+      [incident] = ReorgEvents.list(@chain_id)
+      assert incident.resolved_at == nil
+      assert incident.events_orphaned == 0
+
+      # Nothing was auto-rolled-back: the row keeps its live status.
+      assert Enum.all?(all_rows(), &(&1.orphaned == false))
+    end
+
+    test "a full-window reorg observed one block late stays an incident" do
+      # Replaces [17..19] (the whole window); one block of growth puts the
+      # fork point below the observed-tip floor, so the incident posture is
+      # correct even though the parent link still triggers detection.
+      seed_events([17, 18])
+
+      ChainSim.set_blocks(ChainWorld.forked(ChainWorld.linear(20), 17, 19, 20))
+      :ok = ReorgWatcher.cycle_now(@watcher)
+
+      refute_rewind()
+
+      [incident] = ReorgEvents.list(@chain_id)
+      assert incident.resolved_at == nil
+      assert incident.events_orphaned == 0
+      assert Enum.all?(all_rows(), &(&1.orphaned == false))
+    end
+  end
+
   describe "confirmation sweep" do
     test "confirms only rows at least confirmation_depth deep" do
       seed_events([0, 1, 2, 3])

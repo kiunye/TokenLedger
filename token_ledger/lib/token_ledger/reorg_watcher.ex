@@ -140,7 +140,42 @@ defmodule TokenLedger.ReorgWatcher do
       parent_differs?(state, tip) ->
         walk_back(state, tip.number - 1, tip.number)
 
+      # Or the tip jumped PAST remembered territory: the watcher's cycle
+      # was stalled for ≥2 blocks (serialized RPC pool, node hiccup, CI
+      # load). The new tip and its parent carry no pre-fork evidence, and
+      # fill_window has already backfilled the intervening heights with
+      # post-fork hashes, so the only trustworthy anchor left is the last
+      # ADOPTED tip: a fork that displaced anything at or below it must
+      # also have replaced that block (descendants of a replaced block get
+      # new hashes). One get_block per growth-spurt cycle, zero in steady
+      # state.
+      #
+      # Order matters: this must stay AFTER the two probes above — a live
+      # row at the current tip (ingested during the stall, then reorged)
+      # is evidence they catch and the adopted-tip seam check here would
+      # miss.
+      tip.number > state.tip_number + 1 ->
+        verify_last_adopted_tip(state, tip)
+
       true ->
+        :no_fork
+    end
+  end
+
+  defp verify_last_adopted_tip(state, tip) do
+    case state.fetcher.get_block(state.tip_number) do
+      {:ok, %{hash: canonical_hash}} ->
+        if differs?(state, state.tip_number, canonical_hash) do
+          # The previously-adopted tip was displaced by a fork; walk down
+          # from it to the agreement point.
+          walk_back(state, state.tip_number, tip.number)
+        else
+          # The chain grew cleanly past a stalled cycle: adopt and move on.
+          :no_fork
+        end
+
+      # Same posture as walk_back on RPC failure: retry next cycle.
+      _other ->
         :no_fork
     end
   end

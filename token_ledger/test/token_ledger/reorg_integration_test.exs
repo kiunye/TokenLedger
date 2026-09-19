@@ -66,25 +66,14 @@ defmodule TokenLedger.ReorgIntegrationTest do
 
   @tag timeout: 300_000
   test "reorg over ingested events: rollback, reapply, audit row", %{rpc_url: rpc_url} do
-    truncate_all()
+    deploy = deploy_and_start(rpc_url)
 
-    deploy = run_load_script(rpc_url, phase: 3)
-    Application.put_env(:token_ledger, :contract_address, String.downcase(deploy.registry_address))
-    ChainApp.start(deploy.registry_address)
-
-    run = emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url, run.expected_events)
+    run = emit_events_at_tip(rpc_url, deploy.registry_address, 4, "chain tall enough for depth-3 reorg")
 
     pre_tip = height!(rpc_url)
     pre_live = live_rows()
     assert length(pre_live) == run.expected_events
 
-    # Replace the top of the chain — the freshly emitted events sit inside
-    # the replaced window. The chain must be at least `depth` blocks tall
-    # (Anvil rejects shallower); with `await_ingestion` we have at least one
-    # event fanned out, but Anvil may still be mid-flight on the remaining
-    # phase-1 transactions, so gate explicitly.
-    await_chain_height!(@catchup_timeout, rpc_url, 5, "chain tall enough for depth-3 reorg")
     reorg!(rpc_url, 3)
 
     # Deadline-bounded resolution: the watcher must detect, orphan, rewind,
@@ -116,11 +105,7 @@ defmodule TokenLedger.ReorgIntegrationTest do
 
   @tag timeout: 300_000
   test "empty-range reorg corrects cursor with zero orphans", %{rpc_url: rpc_url} do
-    truncate_all()
-
-    deploy = run_load_script(rpc_url, phase: 3)
-    Application.put_env(:token_ledger, :contract_address, String.downcase(deploy.registry_address))
-    ChainApp.start(deploy.registry_address)
+    deploy = deploy_and_start(rpc_url)
 
     run = emit(rpc_url, 1, deploy.registry_address)
     await_ingestion(rpc_url, run.expected_events)
@@ -168,18 +153,10 @@ defmodule TokenLedger.ReorgIntegrationTest do
   test "listener restart after a completed rollback resumes without reviving orphans", %{
     rpc_url: rpc_url
   } do
-    truncate_all()
+    deploy = deploy_and_start(rpc_url)
 
-    deploy = run_load_script(rpc_url, phase: 3)
-    Application.put_env(:token_ledger, :contract_address, String.downcase(deploy.registry_address))
-    ChainApp.start(deploy.registry_address)
+    emit_events_at_tip(rpc_url, deploy.registry_address, 8, "chain tall enough for depth-8 reorg")
 
-    run = emit(rpc_url, 1, deploy.registry_address)
-    await_ingestion(rpc_url, run.expected_events)
-
-    # Deep enough to reach event blocks even when foreign-contract txs fill
-    # the very top of the chain.
-    await_chain_height!(@catchup_timeout, rpc_url, 12, "chain tall enough for depth-8 reorg")
     reorg!(rpc_url, 8)
 
     wait_until!(@catchup_timeout, fn ->
@@ -234,6 +211,23 @@ defmodule TokenLedger.ReorgIntegrationTest do
 
   defp emit(rpc_url, phase, registry_address) do
     run_load_script(rpc_url, phase: phase, registry: registry_address)
+  end
+
+  # Mines fresh phase-1 events that sit at the CURRENT tip, ready to be
+  # replaced by the caller's anvil_reorg: first gate the chain to the
+  # reorg's minimum height (Anvil rejects a deeper reorg than the chain is
+  # tall), THEN emit and wait for ingestion. The chain only grows, so
+  # gating before the emit anchors the replaced window to blocks the
+  # events actually occupy, however fast the host runs or however the
+  # forge broadcast batches. Gating after ingestion instead lets the tip
+  # outrun the events and produces a zero-orphan correction, failing the
+  # orphans > 0 waits.
+  defp emit_events_at_tip(rpc_url, registry_address, min_height, gate_label) do
+    await_chain_height!(@catchup_timeout, rpc_url, min_height, gate_label)
+
+    run = emit(rpc_url, 1, registry_address)
+    await_ingestion(rpc_url, run.expected_events)
+    run
   end
 
   defp truncate_all do
